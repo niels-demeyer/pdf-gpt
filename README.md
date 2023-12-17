@@ -22,6 +22,5 @@ PDF-GPT represents a sophisticated platform seamlessly integrating artificial in
    OPENAI_API_KEY=your_openai_api_key_here 
 7. Run the app:
    ```bash
-   streamlit run app.py 
-
+   streamlit run app.py
 

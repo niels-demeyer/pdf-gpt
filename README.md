@@ -4,23 +4,23 @@
 PDF-GPT represents a sophisticated platform seamlessly integrating artificial intelligence and document analysis, elevating the nuances of your PDF exploration. Upon uploading your document, a gateway to insightful conversations and revelations is unlocked. This innovative platform leverages the streamlit library, langchain, and the openai API to deliver a refined user experience.
 
 ## Getting Started
-1. **Create a Python Virtual Environment:**
+1. **Create a Python Virtual Environment**
    ```bash
    python -m venv venv
-2. Activate the Virtual Environment:
-   - On Windows:
+2. Activate the Virtual Environment
+   - On Windows
      ```bash
      .\venv\Scripts\activate
-   - On macOS/Linux:
+   - On macOS/Linux
      ```bash
      source venv/bin/activate
-3. Install requirements:
+3. Install requirements
    ```bash
    pip install -r requirements.txt
-5. Create an '.env' file.
+5. Create an '.env' file
    ```bash
    OPENAI_API_KEY=your_openai_api_key_here 
-7. Run the app:
+7. Run the app
    ```bash
    streamlit run app.py
 

@@ -20,10 +20,11 @@ with st.sidebar:
     - [Streamlit](https://streamlit.io/)
     - [LangChain](https://python.langchain.com/)
     - [OpenAI](https://platform.openai.com/docs/models) LLM model
+    - [documentation](https://github.com/niels-demeyer/pdf-gpt)
  
     ''')
     add_vertical_space(5)
-    st.write('Made with ❤️ by [Prompt Engineer](https://youtube.com/@engineerprompt)')
+    st.write('Make sure to connect your OpenAI API key to the app by following the documentation. (See the link above)')
  
 load_dotenv()
  

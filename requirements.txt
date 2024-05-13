@@ -1,4 +1,5 @@
 langchain-community
+pip install langchain_openai
 streamlit
 python-dotenv
 pypdf2

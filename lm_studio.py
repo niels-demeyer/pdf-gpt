@@ -1,19 +1,21 @@
 import streamlit as st
 from dotenv import load_dotenv
-import pickle
 from PyPDF2 import PdfReader
 from streamlit_extras.add_vertical_space import add_vertical_space
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import FAISS
-from langchain_openai import OpenAI, OpenAIEmbeddings
+from sklearn.metrics.pairwise import cosine_similarity
+from transformers import BertTokenizer, BertForMaskedLM, pipeline
 from langchain.chains.question_answering import load_qa_chain
 from langchain.callbacks import get_openai_callback
 from langchain.globals import set_verbose, get_verbose
+from openai import OpenAI
 import os
-
-client = OpenAI(base_url="http://localhost:1234/v1", api_key="not-needed")
+import torch
 
 load_dotenv()
+
+# Instantiate the MLM pipeline
+unmasker = pipeline("fill-mask", model="bert-base-multilingual-cased")
 
 # Sidebar contents
 with st.sidebar:
@@ -34,6 +36,9 @@ with st.sidebar:
         "Make sure to connect your OpenAI API key to the app by following the documentation. (See the link above)"
     )
 
+# Point to the local server
+client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
+
 
 def main():
     st.header("Chat with PDF 💬")
@@ -41,7 +46,6 @@ def main():
     # upload a PDF file
     pdf = st.file_uploader("Upload your PDF", type="pdf")
 
-    # st.write(pdf)
     if pdf is not None:
         pdf_reader = PdfReader(pdf)
 
@@ -54,46 +58,54 @@ def main():
         )
         chunks = text_splitter.split_text(text=text)
 
-        # # embeddings
+        # embeddings
         store_name = pdf.name[:-4]
         st.write(f"{store_name}")
-        # st.write(chunks)
 
-        embeddings = OpenAIEmbeddings()
+        # Define the model name and encoding arguments
+        model_name = "bert-base-multilingual-cased"
 
-        if os.path.exists(f"{store_name}.pkl"):
-            with open(f"{store_name}.pkl", "rb") as f:
-                st.write("Loading VectorStore from disk...")
-                VectorStore_bytes = pickle.load(f)
-                VectorStore = FAISS.deserialize_from_bytes(
-                    VectorStore_bytes, embeddings
-                )
-                st.write("VectorStore loaded.")
-        else:
-            st.write("VectorStore not found on disk. Creating new one...")
-            VectorStore = FAISS.from_texts(chunks, embedding=embeddings)
-            with open(f"{store_name}.pkl", "wb") as f:
-                st.write("Saving VectorStore to disk...")
-                VectorStore_bytes = VectorStore.serialize_to_bytes()
-                pickle.dump(VectorStore_bytes, f)
-                st.write("VectorStore saved.")
-
-        # embeddings = OpenAIEmbeddings()
-        # VectorStore = FAISS.from_texts(chunks, embedding=embeddings)
+        # Instantiate the BERT model
+        tokenizer = BertTokenizer.from_pretrained(model_name)
+        model = BertForMaskedLM.from_pretrained(model_name)
 
         # Accept user questions/query
         query = st.text_input("Ask questions about your PDF file:")
-        # st.write(query)
 
         if query:
-            docs = VectorStore.similarity_search(query=query, k=3)
+            embeddings = []
+            for chunk in chunks:
+                embedding = (
+                    client.embeddings.create(input=[chunk], model=model_name)
+                    .data[0]
+                    .embedding
+                )
+                embeddings.append(embedding)
 
-            llm = OpenAI(base_url="http://localhost:1234/v1", api_key="not-needed")
-            chain = load_qa_chain(llm=llm, chain_type="stuff")
-            with get_openai_callback() as cb:
-                response = chain.run(input_documents=docs, question=query)
-                print(cb)
-            st.write(response)
+            query_embedding = (
+                client.embeddings.create(input=[query], model=model_name)
+                .data[0]
+                .embedding
+            )
+
+            # Compute cosine similarity between query and each document
+            similarities = cosine_similarity([query_embedding], embeddings)
+            # Get the indices of the top 3 most similar documents
+            top_docs_indices = similarities.argsort()[-3:][::-1].flatten().tolist()
+            top_docs = [chunks[i] for i in top_docs_indices]
+
+            completion = client.chat.completions.create(
+                model="lmstudio-community/Meta-Llama-3-8B-Instruct-GGUF",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": query},
+                ],
+                temperature=0.7,
+            )
+
+            st.write(completion.choices[0].message)
+        else:
+            st.write("Please enter a query to chat with the embeddings.")
 
 
 if __name__ == "__main__":
